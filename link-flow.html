@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aiCodingLight 通知链路</title>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --surface-2: #eef1f5;
+    --border: #dde2ea; --border-strong: #c7cfdb;
+    --text: #171c24; --muted: #5b6675; --faint: #8a94a3;
+    --accent: #2563eb;
+    --mac: #2563eb; --mac-tint: rgba(37,99,235,.10);
+    --phone: #7c3aed; --phone-tint: rgba(124,58,237,.10);
+    --server: #5b6675; --server-tint: rgba(91,102,117,.10);
+    --red: #d33b40; --red-tint: rgba(211,59,64,.12);
+    --amber: #b5720c; --amber-tint: rgba(181,114,12,.13);
+    --green: #1f8a54; --green-tint: rgba(31,138,84,.13);
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1116; --surface: #161a21; --surface-2: #1b212a;
+      --border: #262d38; --border-strong: #333c49;
+      --text: #e6e9ee; --muted: #97a2b2; --faint: #6b7686;
+      --accent: #5b93f6;
+      --mac: #5b93f6; --mac-tint: rgba(91,147,246,.13);
+      --phone: #a684f7; --phone-tint: rgba(166,132,247,.14);
+      --server: #8b96a6; --server-tint: rgba(139,150,166,.13);
+      --red: #f0656a; --red-tint: rgba(240,101,106,.15);
+      --amber: #e0a13a; --amber-tint: rgba(224,161,58,.15);
+      --green: #48c088; --green-tint: rgba(72,192,136,.15);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f6f8; --surface: #ffffff; --surface-2: #eef1f5;
+    --border: #dde2ea; --border-strong: #c7cfdb;
+    --text: #171c24; --muted: #5b6675; --faint: #8a94a3;
+    --accent: #2563eb;
+    --mac: #2563eb; --mac-tint: rgba(37,99,235,.10);
+    --phone: #7c3aed; --phone-tint: rgba(124,58,237,.10);
+    --server: #5b6675; --server-tint: rgba(91,102,117,.10);
+    --red: #d33b40; --red-tint: rgba(211,59,64,.12);
+    --amber: #b5720c; --amber-tint: rgba(181,114,12,.13);
+    --green: #1f8a54; --green-tint: rgba(31,138,84,.13);
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --surface: #161a21; --surface-2: #1b212a;
+    --border: #262d38; --border-strong: #333c49;
+    --text: #e6e9ee; --muted: #97a2b2; --faint: #6b7686;
+    --accent: #5b93f6;
+    --mac: #5b93f6; --mac-tint: rgba(91,147,246,.13);
+    --phone: #a684f7; --phone-tint: rgba(166,132,247,.14);
+    --server: #8b96a6; --server-tint: rgba(139,150,166,.13);
+    --red: #f0656a; --red-tint: rgba(240,101,106,.15);
+    --amber: #e0a13a; --amber-tint: rgba(224,161,58,.15);
+    --green: #48c088; --green-tint: rgba(72,192,136,.15);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1rem, 4vw, 2rem) 4rem; }
+
+  /* ---- header ---- */
+  header { margin-bottom: 2.5rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 .7rem;
+  }
+  h1 {
+    font-size: clamp(1.7rem, 5vw, 2.6rem); line-height: 1.1; margin: 0 0 .6rem;
+    letter-spacing: -.02em; text-wrap: balance; font-weight: 680;
+  }
+  .lede { font-size: 1.05rem; color: var(--muted); margin: 0; max-width: 60ch; text-wrap: pretty; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem .55rem; margin-top: 1.6rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: .45rem;
+    font-family: var(--mono); font-size: .74rem; font-weight: 500;
+    padding: .32rem .6rem; border-radius: 999px; border: 1px solid var(--border-strong);
+    background: var(--surface);
+  }
+  .chip .dot { width: .58rem; height: .58rem; border-radius: 50%; flex: none; }
+
+  /* ---- phase ---- */
+  .phase { margin-top: 2.4rem; }
+  .phase__head { display: flex; align-items: baseline; gap: .8rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+  .phase__head h2 { font-size: 1.15rem; margin: 0; letter-spacing: -.01em; font-weight: 660; }
+  .phase__tag {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); border: 1px dashed var(--border-strong);
+    padding: .18rem .5rem; border-radius: 6px;
+  }
+
+  .flow { display: flex; flex-direction: column; }
+
+  /* ---- node card ---- */
+  .node {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 1.05rem 1.15rem 1.15rem; position: relative; overflow: hidden;
+  }
+  .node::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--dev, var(--accent));
+  }
+  .node__top { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; }
+  .num {
+    font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .dev {
+    font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .02em;
+    padding: .2rem .5rem; border-radius: 6px;
+    color: var(--dev); background: var(--dev-tint);
+  }
+  .node h3 { font-size: 1.02rem; margin: 0 0 .3rem; font-weight: 620; letter-spacing: -.01em; }
+  .file { font-family: var(--mono); font-size: .78rem; color: var(--accent); margin: 0 0 .55rem; word-break: break-all; }
+  .node p.desc { margin: 0; color: var(--muted); font-size: .92rem; }
+
+  .payload { margin-top: .8rem; }
+  .payload .plabel {
+    font-family: var(--mono); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--faint); margin-bottom: .3rem;
+  }
+  .payload pre {
+    margin: 0; font-family: var(--mono); font-size: .78rem; line-height: 1.5;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: .6rem .7rem; overflow-x: auto; color: var(--text);
+  }
+  .payload pre .k { color: var(--accent); }
+
+  /* ---- connector ---- */
+  .conn { display: flex; flex-direction: column; align-items: center; padding: .15rem 0; }
+  .conn .wire { width: 2px; height: 16px; background: var(--border-strong); }
+  .conn .lbl {
+    font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: .22rem .6rem; border-radius: 999px; text-align: center; max-width: 92%;
+  }
+  .conn .arrow { color: var(--border-strong); font-size: .8rem; line-height: 1; margin-top: -2px; }
+
+  /* ---- mapping table ---- */
+  .mapwrap { margin-top: 1.2rem; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: .86rem; }
+  th, td { text-align: left; padding: .62rem .8rem; border-bottom: 1px solid var(--border); }
+  thead th {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); background: var(--surface-2); font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.mono, th.mono { font-family: var(--mono); font-size: .8rem; }
+  .status { display: inline-flex; align-items: center; gap: .4rem; font-weight: 600; font-family: var(--mono); font-size: .8rem; }
+  .status .dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none; }
+  .s-red { color: var(--red); } .s-red .dot { background: var(--red); }
+  .s-amber { color: var(--amber); } .s-amber .dot { background: var(--amber); }
+  .s-green { color: var(--green); } .s-green .dot { background: var(--green); }
+  .muted-cell { color: var(--faint); font-family: var(--mono); font-size: .78rem; }
+
+  /* ---- callout ---- */
+  .callout {
+    margin-top: 2.6rem; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.3rem 1.4rem; box-shadow: var(--shadow);
+  }
+  .callout h2 { font-size: 1.05rem; margin: 0 0 .9rem; letter-spacing: -.01em; }
+  .principle { display: flex; gap: .8rem; padding: .55rem 0; }
+  .principle:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .principle .idx { font-family: var(--mono); color: var(--accent); font-weight: 600; flex: none; }
+  .principle p { margin: 0; font-size: .92rem; color: var(--text); }
+  .principle b { font-weight: 640; }
+  .principle .m { color: var(--muted); }
+
+  footer { margin-top: 2.4rem; color: var(--faint); font-family: var(--mono); font-size: .74rem; text-align: center; }
+
+  @media (max-width: 560px) {
+    .node { border-radius: 12px; }
+    h1 { font-size: 1.75rem; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">aiCodingLight · Dataflow</p>
+    <h1>从二维码到手机通知的完整链路</h1>
+    <p class="lede">一个配对码（ntfy topic）串起两端。配对是一次性的把码同步过去；之后每次 AI 工具变状态，都沿同一条路推到手机。两端只经服务器中转，从不直连。</p>
+    <div class="legend">
+      <span class="chip"><span class="dot" style="background:var(--mac)"></span>电脑 Mac</span>
+      <span class="chip"><span class="dot" style="background:var(--phone)"></span>手机 Android</span>
+      <span class="chip"><span class="dot" style="background:var(--server)"></span>ntfy 服务器</span>
+      <span class="chip"><span class="dot" style="background:var(--red)"></span>红 · 需确认</span>
+      <span class="chip"><span class="dot" style="background:var(--amber)"></span>黄 · 工作中</span>
+      <span class="chip"><span class="dot" style="background:var(--green)"></span>绿 · 完成</span>
+    </div>
+  </header>
+
+  <!-- PHASE 1 -->
+  <section class="phase">
+    <div class="phase__head">
+      <h2>配对阶段</h2>
+      <span class="phase__tag">一次性 · 电脑出码 → 手机扫码</span>
+    </div>
+    <div class="flow">
+
+      <article class="node" style="--dev:var(--mac);--dev-tint:var(--mac-tint)">
+        <div class="node__top"><span class="num">01</span><span class="dev">电脑</span></div>
+        <h3>生成二维码</h3>
+        <p class="file">core/pair-web.sh · do_pair()</p>
+        <p class="desc">本地起 ThreadingHTTP 服务，浏览器打开即用 <code>secrets</code> 生成一个随机配对码，写进 config、装好各工具 hook，再把配对码渲染成二维码。</p>
+        <div class="payload">
+          <div class="plabel">二维码内容（内联 JS 生成）</div>
+          <pre><span class="k">aicodinglight://</span>pair?topic=aicl-xxx&amp;server=https%3A%2F%2Fntfy.sh</pre>
+        </div>
+      </article>
+
+      <div class="conn"><span class="wire"></span><span class="lbl">摄像头扫码</span><span class="wire"></span><span class="arrow">▼</span></div>
+
+      <article class="node" style="--dev:var(--phone);--dev-tint:var(--phone-tint)">
+        <div class="node__top"><span class="num">02</span><span class="dev">手机</span></div>
+        <h3>扫码 · 解析</h3>
+        <p class="file">MainActivity.applyScanned() · PortraitCaptureActivity（竖屏）</p>
+        <p class="desc">ZXing 竖屏扫码 → 解析 URI 取出 topic 与 server → 写入 Prefs → 拉起订阅服务。</p>
+      </article>
+
+      <div class="conn"><span class="wire"></span><span class="lbl">topic 落两端</span><span class="wire"></span><span class="arrow">▼</span></div>
+
+      <article class="node" style="--dev:var(--mac);--dev-tint:var(--mac-tint)">
+        <div class="node__top"><span class="num">03</span><span class="dev">电脑</span><span class="dev" style="--dev:var(--phone);--dev-tint:var(--phone-tint)">手机</span></div>
+        <h3>两端各存同一个配对码</h3>
+        <p class="file">~/.config/aicodinglight/config &nbsp;·&nbsp; Prefs</p>
+        <p class="desc">配对完成的标志：两端持有同一个 topic。二维码只是把它从电脑单向送到手机，此后互不感知对方地址。</p>
+        <div class="payload">
+          <div class="plabel">电脑 config</div>
+          <pre><span class="k">NTFY_TOPIC</span>=aicl-xxx
+<span class="k">NTFY_SERVER</span>=https://ntfy.sh
+<span class="k">TRANSPORT</span>=none   <span style="color:var(--faint)"># 纯手机模式，跳过串口灯</span></pre>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- PHASE 2 -->
+  <section class="phase">
+    <div class="phase__head">
+      <h2>运行阶段</h2>
+      <span class="phase__tag">每次触发 · AI 状态 → 手机</span>
+    </div>
+    <div class="flow">
+
+      <article class="node" style="--dev:var(--mac);--dev-tint:var(--mac-tint)">
+        <div class="node__top"><span class="num">04</span><span class="dev">电脑</span></div>
+        <h3>接住 hook · 打上 session 标签</h3>
+        <p class="file">core/set-light.sh</p>
+        <p class="desc">AI 工具触发事件，调用各自配置里的命令 <code>set-light.sh &lt;颜色&gt;</code>。脚本顺手从 hook 的 stdin JSON 读 <code>session_id</code>，拼出标签用于区分多个窗口。</p>
+        <div class="payload">
+          <div class="plabel">标签优先级</div>
+          <pre>AICODINGLIGHT_LABEL  ▸  项目名#session前6位  ▸  项目名</pre>
+        </div>
+      </article>
+
+      <div class="conn"><span class="wire"></span><span class="lbl">后台调用 · 不阻塞 AI 工具</span><span class="wire"></span><span class="arrow">▼</span></div>
+
+      <article class="node" style="--dev:var(--mac);--dev-tint:var(--mac-tint)">
+        <div class="node__top"><span class="num">05</span><span class="dev">电脑</span></div>
+        <h3>组装并推送到服务器</h3>
+        <p class="file">core/notify-phone.sh</p>
+        <p class="desc">读 config 的 topic/server，按颜色定 body 词与标题，<code>curl</code> POST 到 <code>SERVER/TOPIC</code>（2s 超时、后台、静默失败）。body 传语义、Title 传身份。</p>
+        <div class="mapwrap">
+          <table>
+            <thead><tr><th>AI 事件（Claude Code）</th><th>颜色</th><th class="mono">body</th><th>手机标题</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">Notification</td>
+                <td><span class="status s-red"><span class="dot"></span>red</span></td>
+                <td class="mono">attention</td>
+                <td>🔴 需要你确认 · <span class="muted-cell">标签</span></td>
+              </tr>
+              <tr>
+                <td class="mono">Stop / SubagentStop</td>
+                <td><span class="status s-green"><span class="dot"></span>green</span></td>
+                <td class="mono">done</td>
+                <td>🟢 任务完成 · <span class="muted-cell">标签</span></td>
+              </tr>
+              <tr>
+                <td class="mono">UserPromptSubmit · Pre/PostToolUse</td>
+                <td><span class="status s-amber"><span class="dot"></span>yellow</span></td>
+                <td class="mono">working</td>
+                <td class="muted-cell">默认不推（NTFY_ALL=1 才推）</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <div class="conn"><span class="wire"></span><span class="lbl">SSE 长连接 &nbsp;GET /&lt;topic&gt;/sse</span><span class="wire"></span><span class="arrow">▼</span></div>
+
+      <article class="node" style="--dev:var(--phone);--dev-tint:var(--phone-tint)">
+        <div class="node__top"><span class="num">06</span><span class="dev">手机</span></div>
+        <h3>收到 · 弹通知 + 存历史</h3>
+        <p class="file">NtfyService.handle() → Notifier · HistoryStore</p>
+        <p class="desc">SSE 收到 message，解析出 body 词与 title。按 body 定颜色，用 title 展示，<b>通知 id = 标签的 hash</b>——不同窗口并存、同窗口红→绿覆盖；同时写入 SQLite 供按日/项目统计。</p>
+        <div class="payload">
+          <div class="plabel">收到的 ntfy 消息</div>
+          <pre>{ <span class="k">"event"</span>:"message",
+  <span class="k">"message"</span>:"attention",
+  <span class="k">"title"</span>:"🔴 需要你确认 · aiCodingLight#78c902" }</pre>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- callout -->
+  <section class="callout">
+    <h2>两条设计主线</h2>
+    <div class="principle">
+      <span class="idx">A</span>
+      <p><b>一个 topic 串起两端。</b><span class="m"> 配对即同步这个配对码；之后全部走 ntfy 服务器中转，手机与电脑互不知道对方地址，也无需同一局域网。</span></p>
+    </div>
+    <div class="principle">
+      <span class="idx">B</span>
+      <p><b>body 传语义，Title 传身份。</b><span class="m"> body 永远是 attention/done/working，让 App 稳定判色；session 标签走 Title，App 再用它给通知分组。改标签不影响判色。</span></p>
+    </div>
+  </section>
+
+  <footer>aiCodingLight · Mac 状态灯 + 手机通知 · 零第三方依赖（扫码除外）</footer>
+</div>
+</body>
+</html>

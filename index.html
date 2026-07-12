@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="给 Claude Code、Cursor、Codex 等 AI 编码工具接上手机通知——需要确认、任务完成实时推送，扫码配对，离开电脑也不错过。">
+<title>aiCodingLight — AI 编码状态推送到手机</title>
+</head>
+<body>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0e14; --bg-soft: #0f131c; --surface: #12161f; --surface-2: #171c27;
+    --line: #232a37; --line-soft: #1b212c;
+    --text: #eaeef5; --muted: #939eb1; --faint: #67728510;
+    --red: #ff5b61; --amber: #ffb224; --green: #35d399;
+    --green-ink: #0a3a2a;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --maxw: 1080px;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f6f7f9; --bg-soft: #eef1f5; --surface: #ffffff; --surface-2: #f2f4f8;
+    --line: #e0e4ec; --line-soft: #e9edf3;
+    --text: #131923; --muted: #5a6675;
+    --red: #e5484d; --amber: #b5710a; --green: #12a06a; --green-ink: #eafaf2;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      color-scheme: light;
+      --bg: #f6f7f9; --bg-soft: #eef1f5; --surface: #ffffff; --surface-2: #f2f4f8;
+      --line: #e0e4ec; --line-soft: #e9edf3;
+      --text: #131923; --muted: #5a6675;
+      --red: #e5484d; --amber: #b5710a; --green: #12a06a; --green-ink: #eafaf2;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 clamp(1.1rem, 4vw, 2rem); }
+  .mono { font-family: var(--mono); }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(12px); background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .nav-in { display: flex; align-items: center; justify-content: space-between; height: 58px; }
+  .brand { display: flex; align-items: center; gap: .55rem; font-weight: 640; letter-spacing: -.01em; }
+  .brand .sig { display: inline-flex; gap: 3px; }
+  .brand .sig i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+  .nav-links { display: flex; align-items: center; gap: 1.4rem; font-size: .9rem; color: var(--muted); }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta {
+    font-family: var(--mono); font-size: .82rem; color: var(--bg) !important;
+    background: var(--green); padding: .42rem .85rem; border-radius: 8px; font-weight: 600;
+  }
+  .nav-cta:hover { filter: brightness(1.08); }
+  @media (max-width: 620px) { .nav-links a.hide-sm { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; padding: clamp(3rem, 8vw, 6rem) 0 clamp(2.5rem, 6vw, 4.5rem); }
+  .hero::before {
+    content: ""; position: absolute; inset: -20% -10% auto -10%; height: 620px; z-index: 0;
+    background:
+      radial-gradient(48% 40% at 78% 18%, color-mix(in srgb, var(--green) 20%, transparent), transparent 70%),
+      radial-gradient(40% 34% at 20% 8%, color-mix(in srgb, var(--red) 14%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-grid {
+    position: relative; z-index: 1;
+    display: grid; grid-template-columns: 1.15fr .85fr; gap: clamp(2rem, 5vw, 4rem); align-items: center;
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: .76rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--green); margin: 0 0 1.1rem; display: inline-flex; align-items: center; gap: .5rem;
+  }
+  .eyebrow .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 60%, transparent); animation: ping 2.4s infinite; }
+  h1 {
+    font-size: clamp(2.1rem, 5.6vw, 3.5rem); line-height: 1.06; letter-spacing: -.025em;
+    margin: 0 0 1.2rem; font-weight: 720; text-wrap: balance;
+  }
+  h1 .hl { color: var(--green); }
+  h1 .sig-word { font-family: var(--mono); font-size: .82em; padding: .04em .32em; border-radius: 8px; white-space: nowrap; }
+  h1 .w-red { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+  h1 .w-green { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+  .lede { font-size: clamp(1rem, 2.2vw, 1.16rem); color: var(--muted); margin: 0 0 2rem; max-width: 46ch; text-wrap: pretty; }
+
+  .cta-row { display: flex; flex-wrap: wrap; gap: .7rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: .6rem; font-weight: 600; font-size: .95rem;
+    padding: .8rem 1.15rem; border-radius: 11px; border: 1px solid transparent; cursor: pointer;
+    transition: transform .12s ease, filter .12s ease, background .12s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn .ic { width: 18px; height: 18px; flex: none; }
+  .btn .sub { font-family: var(--mono); font-size: .72rem; opacity: .7; font-weight: 500; }
+  .btn-primary { background: var(--green); color: var(--bg); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--line); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .cta-note { margin: .95rem 0 0; font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+  .cta-note .beta { color: var(--amber); }
+
+  /* ---------- hero demo (phone + lamps) ---------- */
+  .demo { position: relative; display: flex; justify-content: center; align-items: center; gap: clamp(1rem,3vw,2rem); }
+  .lamps {
+    display: flex; flex-direction: column; gap: .8rem; padding: .9rem .7rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  }
+  .lamp { width: 20px; height: 20px; border-radius: 50%; position: relative; opacity: .2; transition: opacity .3s; }
+  .lamp.red { background: var(--red); }
+  .lamp.amber { background: var(--amber); }
+  .lamp.green { background: var(--green); }
+
+  .phone {
+    width: min(248px, 62vw); aspect-ratio: 9 / 18.5; border-radius: 30px;
+    background: var(--surface); border: 1px solid var(--line);
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,.6), inset 0 0 0 1px color-mix(in srgb, var(--text) 5%, transparent);
+    padding: 14px 12px; position: relative; overflow: hidden;
+  }
+  .phone .notch { width: 40%; height: 5px; border-radius: 3px; background: var(--line); margin: 4px auto 14px; }
+  .phone .time { text-align: center; font-family: var(--mono); font-size: .74rem; color: var(--muted); margin-bottom: 14px; }
+  .stack { position: relative; height: 210px; }
+  .note {
+    position: absolute; left: 0; right: 0; top: 0;
+    background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--nc, var(--line));
+    border-radius: 12px; padding: .7rem .75rem; opacity: 0;
+  }
+  .note .title { font-size: .82rem; font-weight: 640; display: flex; align-items: center; gap: .4rem; }
+  .note .tag { font-family: var(--mono); font-size: .66rem; color: var(--muted); margin-top: .28rem; }
+  .note.working { --nc: var(--amber); }
+  .note.attention { --nc: var(--red); }
+  .note.done { --nc: var(--green); }
+
+  /* orchestrated 9s loop */
+  @keyframes ping { 0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 55%,transparent);} 70%,100%{box-shadow:0 0 0 9px transparent;} }
+  @keyframes lampPulse { 0%{opacity:.2;} 4%{opacity:1;} 28%{opacity:1;} 34%{opacity:.2;} 100%{opacity:.2;} }
+  @keyframes lampGlow { 0%,34%,100%{filter:none;} 4%,28%{filter:drop-shadow(0 0 10px currentColor);} }
+  @keyframes noteCycle { 0%{opacity:0;transform:translateY(10px) scale(.98);} 4%{opacity:1;transform:none;} 28%{opacity:1;transform:none;} 34%{opacity:0;transform:translateY(-6px) scale(.98);} 100%{opacity:0;} }
+
+  .lamp.amber { animation: lampPulse 9s infinite; animation-delay: 0s; }
+  .lamp.red   { animation: lampPulse 9s infinite; animation-delay: -6s; }
+  .lamp.green { animation: lampPulse 9s infinite; animation-delay: -3s; }
+  .note.working   { animation: noteCycle 9s infinite; animation-delay: 0s; color: var(--text); }
+  .note.attention { animation: noteCycle 9s infinite; animation-delay: -6s; }
+  .note.done      { animation: noteCycle 9s infinite; animation-delay: -3s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lamp, .note, .eyebrow .pulse { animation: none !important; }
+    .lamp.red { opacity: 1; }
+    .note.attention { opacity: 1; }
+  }
+
+  /* ---------- tools strip ---------- */
+  .strip { border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); padding: 1.5rem 0; }
+  .strip-in { display: flex; align-items: center; gap: clamp(1rem,3vw,2.4rem); flex-wrap: wrap; justify-content: center; }
+  .strip .lab { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .strip .tool { font-weight: 560; color: var(--text); opacity: .82; font-size: .95rem; }
+
+  /* ---------- sections ---------- */
+  section.blk { padding: clamp(3.2rem, 7vw, 5.5rem) 0; }
+  .sec-head { max-width: 40ch; margin: 0 0 2.6rem; }
+  .kicker { font-family: var(--mono); font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--green); margin: 0 0 .7rem; }
+  h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -.02em; margin: 0 0 .6rem; text-wrap: balance; font-weight: 680; }
+  .sec-head p { color: var(--muted); margin: 0; font-size: 1.02rem; }
+
+  .feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 15px; padding: 1.3rem 1.25rem;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .card:hover { border-color: color-mix(in srgb, var(--green) 40%, var(--line)); transform: translateY(-2px); }
+  .card .ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 1.05rem; margin-bottom: .85rem; background: var(--surface-2); border: 1px solid var(--line); }
+  .card h3 { font-size: 1.04rem; margin: 0 0 .4rem; letter-spacing: -.01em; font-weight: 620; }
+  .card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.55; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; display: block; }
+
+  /* ---------- steps ---------- */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; counter-reset: s; }
+  .step { position: relative; padding: 1.4rem 1.3rem; background: var(--surface); border: 1px solid var(--line); border-radius: 15px; }
+  .step .n { font-family: var(--mono); font-size: .8rem; color: var(--green); font-weight: 600; }
+  .step h3 { font-size: 1.05rem; margin: .5rem 0 .4rem; letter-spacing: -.01em; }
+  .step p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+  /* ---------- download ---------- */
+  .dl { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: clamp(1.8rem, 4vw, 3rem); text-align: center; position: relative; overflow: hidden; }
+  .dl::before { content:""; position:absolute; inset:auto -30% -60% -30%; height:300px; background: radial-gradient(50% 60% at 50% 100%, color-mix(in srgb, var(--green) 16%, transparent), transparent 70%); pointer-events:none; }
+  .dl > * { position: relative; }
+  .dl h2 { margin-bottom: .5rem; }
+  .dl .sub2 { color: var(--muted); margin: 0 0 1.8rem; }
+  .dl-btns { display: flex; flex-wrap: wrap; gap: .8rem; justify-content: center; }
+  .dl .btn { min-width: 190px; justify-content: center; }
+  .mobile-note { margin: 1.6rem 0 0; font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+  .mobile-note a { color: var(--green); border-bottom: 1px solid color-mix(in srgb, var(--green) 40%, transparent); }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line-soft); padding: 2.4rem 0 3rem; margin-top: 1rem; }
+  .foot-in { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; align-items: center; }
+  .foot-in p { margin: 0; color: var(--muted); font-size: .84rem; }
+  .foot-links { display: flex; gap: 1.3rem; font-size: .84rem; color: var(--muted); font-family: var(--mono); }
+  .foot-links a:hover { color: var(--text); }
+
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .demo { order: -1; margin-bottom: 1rem; }
+    .feat, .steps { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 861px) and (max-width: 1000px) {
+    .feat { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <span class="sig"><i style="background:var(--red)"></i><i style="background:var(--amber)"></i><i style="background:var(--green)"></i></span>
+      aiCodingLight
+    </a>
+    <div class="nav-links">
+      <a href="#features" class="hide-sm">功能</a>
+      <a href="#how" class="hide-sm">怎么用</a>
+      <a href="#download" class="nav-cta">下载</a>
+    </div>
+  </div>
+</nav>
+
+<a id="top"></a>
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="pulse"></span>AI 编码状态 · 实时到手机</p>
+      <h1>别守着 AI 跑。<br>它需要<span class="sig-word w-red">确认</span>时,<br>手机会<span class="hl">响</span>。</h1>
+      <p class="lede">给 Claude Code、Cursor、Codex 等接上通知——需要你确认就 🔴,任务完成就 🟢,第一时间推到手机。双击安装、扫码配对,离开电脑也不错过。</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#download">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/></svg>
+          下载 macOS <span class="sub">.dmg</span>
+        </a>
+        <a class="btn btn-ghost" href="#download">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/></svg>
+          下载 Windows <span class="sub">.exe</span>
+        </a>
+      </div>
+      <p class="cta-note"><span class="beta">● Beta</span> · 双击安装,自动接入你的 AI 工具 · 免费开源</p>
+    </div>
+
+    <div class="demo">
+      <div class="lamps" aria-hidden="true">
+        <span class="lamp red"></span>
+        <span class="lamp amber"></span>
+        <span class="lamp green"></span>
+      </div>
+      <div class="phone" aria-hidden="true">
+        <div class="notch"></div>
+        <div class="time">9:41</div>
+        <div class="stack">
+          <div class="note working">
+            <div class="title">🟡 AI 工作中</div>
+            <div class="tag">aiCodingLight · 项目 aicl#78c9</div>
+          </div>
+          <div class="note attention">
+            <div class="title">🔴 需要你确认</div>
+            <div class="tag">aiCodingLight · 项目 aicl#78c9</div>
+          </div>
+          <div class="note done">
+            <div class="title">🟢 任务完成</div>
+            <div class="tag">aiCodingLight · 项目 aicl#78c9</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap strip-in">
+    <span class="lab">已支持</span>
+    <span class="tool">Claude Code</span>
+    <span class="tool">Gemini CLI</span>
+    <span class="tool">Copilot CLI</span>
+    <span class="tool">Cursor</span>
+    <span class="tool">Codex</span>
+    <span class="tool">Aider</span>
+  </div>
+</div>
+
+<section class="blk" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">功能</p>
+      <h2>把"盯着屏幕等 AI"这件事,交给手机。</h2>
+      <p>一次安装,之后每个 AI 工具的关键时刻都会找到你。</p>
+    </div>
+    <div class="feat">
+      <div class="card">
+        <div class="ico"><span class="dots"><i style="background:var(--red)"></i><i style="background:var(--green)"></i></span></div>
+        <h3>实时状态推送</h3>
+        <p>需要确认 🔴、任务完成 🟢 第一时间到手机;频繁的"工作中"默认不打扰,免得刷屏。</p>
+      </div>
+      <div class="card">
+        <div class="ico">⚡</div>
+        <h3>一键接入 6 种工具</h3>
+        <p>自动识别本机装了哪些 AI 工具,双击即接入 hook。可逆、可撤销,改动前自动备份。</p>
+      </div>
+      <div class="card">
+        <div class="ico">📷</div>
+        <h3>扫码配对</h3>
+        <p>电脑弹出二维码,手机扫一下就连上。两端只经服务器中转,手机和电脑不用在同一网络。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🏷️</div>
+        <h3>多窗口不混</h3>
+        <p>同时开多个 AI 会话?每条通知都带项目 / 会话标签,一眼分清是哪个窗口在叫你。</p>
+      </div>
+      <div class="card">
+        <div class="ico">📊</div>
+        <h3>历史与统计</h3>
+        <p>所有通知留档,按天、按项目看你的 AI 用量与节奏,不再是转瞬即逝的一条推送。</p>
+      </div>
+      <div class="card">
+        <div class="ico">💡</div>
+        <h3>可选硬件状态灯</h3>
+        <p>接一个 ESP32 灯珠,红黄绿实体呈现——余光扫一眼桌上的灯,就知道 AI 在干嘛。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="blk" id="how" style="background:var(--bg-soft); border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">三步接通</p>
+      <h2>从下载到收到第一条通知,大概一分钟。</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="n">01</span>
+        <h3>双击电脑端</h3>
+        <p>下载对应 Mac / Windows 的文件,双击运行。它自动给你的 AI 工具装好通知,并弹出一个二维码。零配置。</p>
+      </div>
+      <div class="step">
+        <span class="n">02</span>
+        <h3>手机扫码</h3>
+        <p>手机装上 App,打开点「扫码配对」,对准电脑上的二维码扫一下,即刻连上。</p>
+      </div>
+      <div class="step">
+        <span class="n">03</span>
+        <h3>收到通知</h3>
+        <p>之后 AI 每次需要你确认或跑完任务,手机立刻响。你可以放心去做别的事。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="blk" id="download">
+  <div class="wrap">
+    <div class="dl">
+      <p class="kicker" style="justify-content:center;">下载</p>
+      <h2>装上它,把注意力还给自己。</h2>
+      <p class="sub2">选择你的系统,双击即用。手机端扫码即可配对。</p>
+      <div class="dl-btns">
+        <a class="btn btn-primary" href="https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aiCodingLight.dmg" data-dl="mac">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+          macOS <span class="sub">.dmg · Apple 芯片 / Intel</span>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aiCodingLight.exe" data-dl="win">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+          Windows <span class="sub">.exe · Win 10/11</span>
+        </a>
+      </div>
+      <p class="mobile-note">手机端: <a href="https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aiCodingLight.apk" data-dl="android">Android APK</a> &nbsp;·&nbsp; <a href="#" data-dl="ios">iOS(App Store)</a> &nbsp;—&nbsp; 或用手机扫电脑上的二维码</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <p>aiCodingLight · 让 AI 编码状态实时到手机 · 免费开源</p>
+    <div class="foot-links">
+      <a href="#features">功能</a>
+      <a href="#download">下载</a>
+      <a href="https://github.com/shlgyzl/aiCodingLight-dist" data-dl="github">GitHub</a>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
