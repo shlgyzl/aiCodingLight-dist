@@ -1,7 +1,7 @@
 {
-  "version": "0.7.8",
+  "version": "0.7.9",
   "url": "https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aicodinglight-macos",
-  "sha256": "698f83d8ab032ce0b8e5623c5d8c438e5232793b179dfefc04f2614298cb5376",
+  "sha256": "4fc282adcb3ec8764e505917515893914dbc261ad1100e319e6e3f64c16056dc",
   "url_windows": "https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aiCodingLight.exe",
-  "sha256_windows": "8fb5ac98333d52f4f0ad1c9252e1abe5f6645e98e5302e982a3efac48ca7efe3"
+  "sha256_windows": "25296d9b18f5132e06acf38c7900f894077a5af5745e19c4d662216e206abb93"
 }
