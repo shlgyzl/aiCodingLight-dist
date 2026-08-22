@@ -26,8 +26,6 @@ irm https://shlgyzl.github.io/aiCodingLight-dist/install.ps1 | iex
 
 它会自动检测本机装了哪些 AI 工具、把 hook 写进各自配置（**改动前自动备份**），然后弹出网页让你注册并出二维码。
 
-也可以从 [Releases](https://github.com/shlgyzl/aiCodingLight-dist/releases/latest) 直接下 `.dmg` / `.exe`，但因为没做 Apple 公证 / 代码签名，首次需要手动「仍要打开 / 仍要运行」。命令行安装没有这一步。
-
 ## 二、手机端（Android）
 
 下载 [**Android APK**](https://github.com/shlgyzl/aiCodingLight-dist/releases/tag/android-v0.8.1)，直装即可（需允许「未知来源」）。

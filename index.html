@@ -202,8 +202,8 @@
   .dl .btn { min-width: 190px; justify-content: center; }
   .mobile-note { margin: 1.6rem 0 0; font-family: var(--mono); font-size: .78rem; color: var(--muted); }
   .mobile-note a { color: var(--green); border-bottom: 1px solid color-mix(in srgb, var(--green) 40%, transparent); }
-  /* 下载区：① 电脑 ② 手机 两步。命令行是推荐路径,所以它占主位;
-     .dmg/.exe 降级成一行小字——它们会被 Gatekeeper/SmartScreen 拦,不该做主按钮。 */
+  /* 下载区：① 电脑 ② 手机 两步。只留终端一行这一条路径——
+     .dmg/.exe 没做公证/签名,首次必然撞 Gatekeeper/SmartScreen,不作为对外入口。 */
   .dl-steps { display: grid; gap: 1.1rem; max-width: 620px; margin: 0 auto; text-align: left; }
   .dl-step { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; }
   .dl-step h3 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: .55rem; }
@@ -261,18 +261,18 @@
     <div class="hero-copy">
       <p class="eyebrow"><span class="pulse"></span>AI 编码状态 · 实时到手机</p>
       <h1>别守着 AI 跑。<br>它需要<span class="sig-word w-red">确认</span>时,<br>手机会<span class="hl">响</span>。</h1>
-      <p class="lede">给 Claude Code、Cursor、Codex 等接上通知——需要你确认就 🔴,任务完成就 🟢,第一时间推到手机。双击安装、扫码配对,离开电脑也不错过。</p>
+      <p class="lede">给 Claude Code、Cursor、Codex 等接上通知——需要你确认就 🔴,任务完成就 🟢,第一时间推到手机。终端一行装好、扫码配对,离开电脑也不错过。</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#download">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/></svg>
-          下载 macOS <span class="sub">.dmg</span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          立即安装 <span class="sub">macOS · Windows</span>
         </a>
-        <a class="btn btn-ghost" href="#download">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/></svg>
-          下载 Windows <span class="sub">.exe</span>
+        <a class="btn btn-ghost" href="#how">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4m0-4h.01"/></svg>
+          怎么用
         </a>
       </div>
-      <p class="cta-note"><span class="beta">● Beta</span> · 双击安装,自动接入你的 AI 工具 · 免费开源</p>
+      <p class="cta-note"><span class="beta">● Beta</span> · 一行命令,自动接入你已装的 AI 工具 · 免费开源</p>
     </div>
 
     <div class="demo">
@@ -408,7 +408,6 @@
               <button class="dl-copy" data-cmd="dlcmdwin" data-dl="win">复制</button>
             </div>
           </div>
-          <p class="dl-alt">不想用命令行?也可以下 <a href="https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aiCodingLight.dmg">.dmg</a> 或 <a href="https://github.com/shlgyzl/aiCodingLight-dist/releases/latest/download/aiCodingLight.exe">.exe</a> —— 但没做公证/代码签名,首次要手动「仍要打开 / 仍要运行」。</p>
         </div>
 
         <div class="dl-step">
